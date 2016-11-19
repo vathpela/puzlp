@@ -1,0 +1,29 @@
+#!/usr/bin/python3
+
+import sys
+
+from puz import *
+
+def process_puzzle(jobid, user, name, copies, options, data):
+    import pdb
+    puz = Puzzle(data)
+    puz.parse()
+
+    print("puz: %s" % (puz,))
+    # pdb.set_trace()
+    pass
+
+if __name__ == '__main__':
+    jobid = sys.argv[1]
+    user = sys.argv[2]
+    name = sys.argv[3]
+    copies = sys.argv[4]
+    options = sys.argv[5]
+    if len(sys.argv) == 7:
+        infile = open(sys.argv[6], "rb")
+    else:
+        infile = sys.stdin
+
+    data = infile.read()
+
+    process_puzzle(jobid, user, name, copies, options, data)
