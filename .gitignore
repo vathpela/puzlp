@@ -1,0 +1,4 @@
+./*.puz
+*.pdf
+.*.sw?
+__pycache__
