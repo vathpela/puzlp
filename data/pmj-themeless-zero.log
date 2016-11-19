@@ -1,0 +1,60 @@
+plan: clues[70:85] cols[2:1] font[9.100000:13.000000] grid[0.620000:1.200000]
+max_box_size: 40.818898
+min_box_size: 21.089764
+min_box_size: 21.089764
+max_box_size: 40.818898
+old box size: 22.000000 new box size: 21.259843
+plan: clues[70:85] cols[2:1] font[9.100000:13.000000] grid[0.620000:1.200000]
+max_box_size: 42.156850
+min_box_size: 21.781039
+min_box_size: 21.781039
+max_box_size: 42.156850
+old box size: 21.781039 new box size: 21.956693
+82 clues
+Trying size 13.000000
+Trying size 12.870000
+Trying size 12.870000
+Trying size 12.741300
+Trying size 12.741300
+Trying size 12.613887
+Trying size 12.613887
+Trying size 12.487748
+Trying size 12.487748
+Trying size 12.362871
+Trying size 12.362871
+Trying size 12.239242
+Trying size 12.239242
+Trying size 12.116850
+Trying size 12.116850
+Trying size 11.995681
+Trying size 11.995681
+Trying size 11.875724
+Trying size 11.875724
+Trying size 11.756967
+Trying size 11.756967
+Trying size 11.639397
+Trying size 11.639397
+Trying size 11.523003
+Trying size 11.523003
+Trying size 11.407773
+Trying size 11.407773
+Trying size 11.293696
+Trying size 11.293696
+Trying size 11.180759
+Trying size 11.180759
+Trying size 11.068951
+Trying size 11.068951
+Trying size 10.958262
+Trying size 10.958262
+Trying size 10.848679
+Trying size 10.848679
+Trying size 10.740192
+Trying size 10.740192
+Trying size 10.632790
+Trying size 10.632790
+Trying size 10.526462
+found valid width 494.025591 (<= 526.960630)
+self.left: 42.519685 self.right: 569.480315 self.w: 526.960630
+box_size: 21.956693 font size: 10.526462
+final width 526.960630
+self.left: 42.519685 self.right: 569.480315 self.w: 526.960630
