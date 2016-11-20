@@ -3,7 +3,6 @@
 import os
 import cups
 import pdb
-import pprint
 
 from attr import attrs, attrib
 from attr.validators import instance_of, optional, provides
@@ -42,7 +41,6 @@ class Printer:
         self.printer = printers[self.queue]
         self.pattrs = self.conn.getPrinterAttributes(self.queue)
         self.jobattrs = self.conn.getJobAttributes(self.jobid)
-        pprint.pprint(self.jobattrs, stream=log)
 
     @property
     def media(self):
@@ -55,30 +53,37 @@ class Printer:
 
     @property
     def top_margin(self):
+        return 14
         return self.pattrs['media-top-margin-supported'][0]
 
     @property
     def bottom_margin(self):
+        return 14
         return self.pattrs['media-bottom-margin-supported'][0]
 
     @property
     def left_margin(self):
+        return 14
         return self.pattrs['media-left-margin-supported'][0]
 
     @property
     def right_margin(self):
+        return 14
         return self.pattrs['media-right-margin-supported'][0]
 
     @property
     def dpi(self):
+        return 300
         return self.pattrs['printer-resolution-default'][0]
 
     @property
     def width(self):
+        return 612
         return self.dpi * 8.5
 
     @property
     def height(self):
+        return 792
         return self.dpi * 11
 
     @property
