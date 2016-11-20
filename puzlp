@@ -1,17 +1,70 @@
 #!/usr/bin/python3
 
+import os
 import sys
+import signal
 
 from puz import *
 
-def process_puzzle(jobid, user, name, copies, options, data):
-    import pdb
-    puz = Puzzle(data)
-    puz.parse()
+from attr import attrs, attrib
+from attr.validators import instance_of, optional, provides
 
-    print("puz: %s" % (puz,))
-    # pdb.set_trace()
-    pass
+from puz.validators import *
+
+from PyPDF2 import pdf, PdfFileWriter
+
+def cb(s):
+    ret = []
+    for c in s:
+        if c == 'T':
+            ret.append(TallColumn)
+        elif c == 't':
+            ret.append(TopColumn)
+        elif c == 'b':
+            ret.append(BottomColumn)
+        else:
+            raise ValueError('"%c" must be one of: T t b' % (c,))
+    return tuple(ret)
+
+@attrs
+class PageMaker:
+    jobid = attrib()
+    user = attrib()
+    name = attrib()
+    copies = attrib()
+    options = attrib()
+    data = attrib()
+    printer = attrib()
+
+    pages = attrib(default=[])
+    puzzle = attrib(default=None, validator=optional(instance_of(Puzzle)))
+
+    plans = attrib(default=[
+        Plan(0, 50, cols=cb("Tb"), new_down_col=True, grid_max=1.2),
+        Plan(50, 70, cols=cb("Tbb"), new_down_col=True, grid_max=1.2),
+        Plan(70, 85, cols=cb("Tbb"), grid_max=1.2, font_max=13),
+        Plan(85, 95, cols=cb("Tbb"), grid_max=1.2),
+        Plan(95, 110, cols=cb("Tbbb")),
+        Plan(110, 130, cols=cb("Tbbb"), margin_add=-15, grid_min=0.60, font_min=8.0),
+        Plan(130, 138, cols=cb("Tbbb"), margin_add=-15, grid_min=0.60, font_min=8.0),
+        Plan(138, 140, cols=cb("TTbb"), margin_add=-15, grid_min=0.66),
+        Plan(140, 141, cols=cb("Tb"), margin_add=-30, grid_min=0.5, font_min=7.0, bottom_margin_add=-15),
+        Plan(141, 145, cols=cb("TTbbb"), margin_add=-30, grid_min=0.625, font_min=8.2, bottom_margin_add=-15),
+        ])
+
+    def write(self, file):
+        pfw = PdfFileWriter()
+        for page in self.pages:
+            pfw.addPage(page)
+        pfw.write(file)
+
+    def build(self):
+        self.puzzle = Puzzle(data)
+        self.puzzle.parse()
+        print("INFO: %s" % (self.puzzle,), file=sys.stderr)
+
+def sigterm(signum, context):
+    os.exit(1)
 
 if __name__ == '__main__':
     jobid = sys.argv[1]
@@ -22,8 +75,24 @@ if __name__ == '__main__':
     if len(sys.argv) == 7:
         infile = open(sys.argv[6], "rb")
     else:
-        infile = sys.stdin
+        infile = os.fdopen(sys.stdin.fileno())
 
     data = infile.read()
 
-    process_puzzle(jobid, user, name, copies, options, data)
+    signal.signal(signal.SIGTERM, sigterm)
+    signal.signal(signal.SIGPIPE, signal.SIG_IGN)
+
+    log = open("/tmp/puzlp.log", "w")
+    print("args: %s" % (sys.argv,), file=log)
+    print("%s" % (os.environ,), file=log)
+
+    printer = Printer(jobid=jobid, options=options)
+    printer.connect(log)
+
+    if os.environ['CONTENT_TYPE'] == 'application/x-crossword':
+        pm = PageMaker(jobid, user, name, copies, options, data, printer)
+        pm.build()
+    else:
+        os.exit(1)
+
+    del log
