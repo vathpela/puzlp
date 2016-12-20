@@ -4,85 +4,70 @@ from attr import attrs, attrib
 from attr.validators import instance_of, optional, provides
 import re
 
+import pdb
+
 from .validators import *
+from .drawing import *
 
-@attrs
-class Page:
-    width = attrib(validator=positive(number))
-    height = attrib(validator=positive(number))
+@attrs(slots=True, init=False)
+class Quadrant:
+    quadrant = attrib(init=False, validator=instance_of(int))
 
-    margin_left = attrib(validator=number)
-    margin_right = attrib(validator=number)
+    def __init__(self, quadrant):
+        if quadrant < 1 or quadrant > 4:
+            raise ValueError('quadrant must be 1 through 4')
+        self.quadrant = quadrant
+
+@attrs(slots=True)
+class LetterBox:
+    x = attrib(validator=positive(instance_of(int)))
+    y = attrib(validator=positive(instance_of(int)))
+    circle = attrib(default=False, validator=instance_of(bool))
 
 @attrs(slots=True)
 class Column:
     anchor_to_top = attrib(default=False, validator=instance_of(bool))
     anchor_to_bottom = attrib(default=False, validator=instance_of(bool))
+    clues = attrib(default=[])
 
 @attrs(slots=True)
 class TallColumn(Column):
-    def __init__(self):
-        self.anchor_to_top = True
-        self.anchor_to_bottom = True
+    anchor_to_top = True
+    anchor_to_bottom = True
 
 @attrs(slots=True)
 class TopColumn(Column):
-    def __init__(self):
-        self.anchor_to_top = True
-        self.anchor_to_bottom = False
+    anchor_to_top = True
+    anchor_to_bottom = False
 
 @attrs(slots=True)
 class BottomColumn(Column):
-    def __init__(self):
-        self.anchor_to_top = False
-        self.anchor_to_bottom = True
+    anchor_to_top = False
+    anchor_to_bottom = True
 
-@attrs
-class Grid:
-    quadrant = attrib(validator=onetofour)
-    rows = attrib(default=13, validator=positive(instance_of(int)))
-    cols = attrib(default=13, validator=positive(instance_of(int)))
+@attrs(slots=True)
+class Clue:
+    startxy = attrib(validator=instance_of(LetterBox))
+    endxy = attrib(validator=instance_of(LetterBox))
+    number = attrib(validator=instance_of(int))
+    text = attrib(validator=instance_of(str))
 
-    # line width in dots
-    line_width = attrib(default=2, validator=positive(number))
-    # size as pct of paper (inside margin box)
-    size = attrib(default=60, validator=percentage)
+    @property
+    def across(self):
+        if startxy.x == endxy.x:
+            return True
+        return False
 
-@attrs
-class Plan:
-    clues_min = attrib(validator=number)
-    clues_max = attrib(validator=positive(number))
+    @property
+    def down(self):
+        return not self.across
 
-    cols = attrib(validator=instance_of(tuple))
+    def __len__(self):
+        return len(self.text)
 
-    grid_min = attrib(default=0.62, validator=percentage)
-    grid_max = attrib(default=0.70, validator=percentage)
+    def size(self, font, weight):
+        pass
 
-    font_min = attrib(default=9.1, validator=positive(number))
-    font_max = attrib(default=12.0, validator=positive(number))
-
-    font_name = attrib(default="Carlito", validator=instance_of(str))
-    font_weight = attrib(default="Regular", validator=instance_of(str))
-
-    margin_mult = attrib(default=1.0, validator=number)
-    margin_add = attrib(default=0, validator=number)
-    bottom_margin_add = attrib(default=0, validator=number)
-    top_margin_add = attrib(default=0, validator=number)
-
-    new_down_col = attrib(default=False, validator=instance_of(bool))
-
-    grid_position = attrib(default=1, validator=onetofour)
-
-    clue_letters_min = attrib(default=None, validator=optional(number))
-    clue_letters_max = attrib(default=None,
-				validator=optional(positive(number)))
-
-    _tall_left_cols = attrib(default=0, validator=instance_of(int))
-    _tall_right_cols = attrib(default=0, validator=instance_of(int))
-    _top_left_cols = attrib(default=0, validator=instance_of(int))
-    _top_right_cols = attrib(default=0, validator=instance_of(int))
-    _bottom_left_cols = attrib(default=0, validator=instance_of(int))
-    _bottom_right_cols = attrib(default=0, validator=instance_of(int))
 
 @attrs
 class PuzzleParser:
@@ -253,7 +238,11 @@ class PuzzleParser:
                             self.across_clues[number] = ''
                             is_fresh_x = False
                         else:
-                            self.across_clues[number] = self.clues.pop(0)
+                            text = self.clues.pop(0).decode("iso_8859-1")
+                            start = LetterBox(x, y)
+                            end = LetterBox(x+len(text), y)
+                            clue = Clue(start, end, number, text)
+                            self.across_clues[number] = clue
                     else:
                         self.across_map[x, y] = self.across_map[x-1, y]
                     if is_fresh_y:
@@ -262,7 +251,11 @@ class PuzzleParser:
                             self.down_clues[number] = ''
                             is_fresh_y = False
                         else:
-                            self.down_clues[number] = self.clues.pop(0)
+                            text = self.clues.pop(0).decode("iso_8859-1")
+                            start = LetterBox(x, y)
+                            end = LetterBox(x, y+len(text))
+                            clue = Clue(start, end, number, text)
+                            self.down_clues[number] = clue
                     else:
                         self.down_map[x, y] = self.down_map[x, y-1]
 
@@ -319,5 +312,8 @@ class Puzzle:
     def clues(self):
         return len(self.down_clues) + len(self.across_clues)
 
-__all__ = ["Page", "Column", "TallColumn", "TopColumn", "BottomColumn", "Grid",
-        "Plan", "Puzzle"]
+__all__ = [
+        "Grid", "Puzzle", "LetterBox", "Clue",
+        "Column", "TallColumn", "TopColumn", "BottomColumn",
+        "Quadrant",
+        ]

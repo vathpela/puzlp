@@ -4,6 +4,8 @@ import attr
 from attr import attrs, attrib
 from attr.validators import instance_of, optional, provides
 
+from .utility import *
+
 def number(instance, attribute, value):
     if not isinstance(value, float) and not isinstance(value, int):
         raise TypeError('"%s" must be a number' % (attribute,))
@@ -14,7 +16,7 @@ class _PositiveValidator:
 
     def __call__(self, inst, attr, value):
         if value < 0:
-            raise ValueError('"%s" must be greater than 0' % (attribute,))
+            raise ValueError('"%s" must be greater than 0' % (attr,))
         return self.validator(inst, attr, value)
 
     def __repr__(self):
@@ -36,8 +38,4 @@ def percentage(instance, attribute, value):
     if value > 100:
         raise ValueError('"%s" cannot be greater than 100' % (attribute,))
 
-def onetofour(instance, attribute, value):
-    if not value in [1,2,3,4]:
-        raise ValueError('"%s" must be one of: 1 2 3 4' % (attribute,))
-
-__all__ = ["number", "positive", "percentage", "onetofour"]
+__all__ = ["number", "positive", "percentage"]

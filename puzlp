@@ -4,6 +4,8 @@ import os
 import sys
 import signal
 
+from collections import *
+
 from puz import *
 
 from attr import attrs, attrib
@@ -11,7 +13,11 @@ from attr.validators import instance_of, optional, provides
 
 from puz.validators import *
 
-from PyPDF2 import pdf, PdfFileWriter
+from puz import cairo
+from puz.cairo import Point, Line
+
+
+import pdb
 
 def cb(s):
     ret = []
@@ -26,6 +32,70 @@ def cb(s):
             raise ValueError('"%c" must be one of: T t b' % (c,))
     return tuple(ret)
 
+def string_to_glyphs(ctx, s):
+    fe = font_extent(*ctx.font_extents())
+
+    indices = [ord(c) for c in s]
+    xs = []
+    ys = []
+    n = 0
+    for x in range(len(s)):
+        xs.append(n)
+        ys.append(fe.height)
+        n += fe.max_x_advance
+
+    getups = tuple(zip(indices, xs, ys))
+    ctx.show_glyphs(getups)
+    # pdb.set_trace()
+    te = text_extent(*ctx.glyph_extents(getups))
+    return te
+
+@attrs
+class Plan:
+    clues_min = attrib(validator=number)
+    clues_max = attrib(validator=positive(number))
+
+    cols = attrib(validator=instance_of(tuple))
+
+    box_size = attrib(default=19, validator=positive(instance_of(int)))
+
+    grid_min = attrib(default=0.62, validator=percentage)
+    grid_max = attrib(default=0.70, validator=percentage)
+
+    font_min = attrib(default=9.1, validator=positive(number))
+    font_max = attrib(default=12.0, validator=positive(number))
+
+    font_name = attrib(default="Carlito", validator=instance_of(str))
+    font_weight = attrib(default="Regular", validator=instance_of(str))
+
+    margin_mult = attrib(default=1.0, validator=number)
+    margin_add = attrib(default=0, validator=number)
+    bottom_margin_add = attrib(default=0, validator=number)
+    top_margin_add = attrib(default=0, validator=number)
+
+    new_down_col = attrib(default=False, validator=instance_of(bool))
+
+    grid_position = attrib(default=Quadrant(1), validator=instance_of(Quadrant))
+
+    clue_letters_min = attrib(default=None, validator=optional(number))
+    clue_letters_max = attrib(default=None,
+				validator=optional(positive(number)))
+
+    _tall_left_cols = attrib(default=0, validator=instance_of(int))
+    _tall_right_cols = attrib(default=0, validator=instance_of(int))
+    _top_left_cols = attrib(default=0, validator=instance_of(int))
+    _top_right_cols = attrib(default=0, validator=instance_of(int))
+    _bottom_left_cols = attrib(default=0, validator=instance_of(int))
+    _bottom_right_cols = attrib(default=0, validator=instance_of(int))
+
+    def match(self, puzzle):
+        if puzzle.clues < self.clues_min:
+            return False
+        if puzzle.clues > self.clues_max:
+            return False
+
+        return True
+
 @attrs
 class PageMaker:
     jobid = attrib()
@@ -38,6 +108,8 @@ class PageMaker:
 
     pages = attrib(default=[])
     puzzle = attrib(default=None, validator=optional(instance_of(Puzzle)))
+
+    debug = attrib(default=False, validator=instance_of(bool))
 
     plans = attrib(default=[
         Plan(0, 50, cols=cb("Tb"), new_down_col=True, grid_max=1.2),
@@ -53,15 +125,82 @@ class PageMaker:
         ])
 
     def write(self, file):
-        pfw = PdfFileWriter()
-        for page in self.pages:
-            pfw.addPage(page)
-        pfw.write(file)
+        pass
+
+    def estimate_text_area(self, text):
+        surface = cairo.PDFSurface(None, self.width, self.height)
+        ctx = cairo.Context(surface)
+        ff = self.ctx.get_font_face()
+        ctx.select_font_face(ff.get_family(), ff.get_slant(), ff.get_weight())
+        ctx.set_font_size(self.ctx._font_size)
+
+        sf = ctx.get_scaled_font()
+        te = sf.text_extents(text)
+
+        return te.width * te.height
+
+    @property
+    def width(self):
+        return self.printer.width \
+                - self.printer.left_margin \
+                - self.printer.right_margin
+
+    @property
+    def height(self):
+        return self.printer.height \
+                - self.printer.top_margin \
+                - self.printer.bottom_margin
 
     def build(self):
         self.puzzle = Puzzle(data)
         self.puzzle.parse()
         print("INFO: %s" % (self.puzzle,), file=sys.stderr)
+        print("INFO: printer: %s media: %s" % (self.printer.queue,
+            self.printer.media_name), file=sys.stderr)
+        for plan in self.plans:
+            if not plan.match(self.puzzle):
+                continue
+
+            surface = cairo.PDFSurface("tmp.pdf", self.width, self.height)
+            surface.set_device_offset(self.printer.left_margin,
+                                      self.printer.right_margin)
+            ctx = cairo.Context(surface)
+            self.ctx = ctx
+            ctx.select_font_face(plan.font_name, cairo.FONT_SLANT_NORMAL,
+                    cairo.FONT_WEIGHT_NORMAL)
+            ctx.set_font_size(plan.font_min)
+            print("INFO: Bounds: left:%s right:%s top: %s bottom: %s" %
+                    (self.printer.left_bound, self.printer.right_bound,
+                        self.printer.top_bound, self.printer.bottom_bound),
+                    file=sys.stderr)
+
+            page = Page(self.width, self.height, self.printer.left_margin,
+                    self.printer.right_margin, self.printer.top_margin,
+                    self.printer.bottom_margin)
+            page.plan = plan
+            page.surface = surface
+            page.ctx = ctx
+
+            if self.debug:
+                ctx.set_source_rgb(0, 0, 0)
+                ctx.set_line_width(0.1)
+                ctx.rectangle(Point(0, 0), page.width, page.height)
+                ctx.stroke()
+
+            ctx.set_source_rgb(0, 0, 0)
+            grid = Grid(page, debug=self.debug)
+            grid.draw()
+
+            est = self.estimate_text_area("foo")
+            print('area of "foo" is %s' % (est,))
+            est = self.estimate_text_area("zoink")
+            print('area of "zoink" is %s' % (est,))
+
+            ctx.move_to(Point(90, 90))
+            ctx.show_text("zonk")
+            # ges = string_to_glyphs(ctx, "sigh")
+
+            break
 
 def sigterm(signum, context):
     os.exit(1)
@@ -90,7 +229,8 @@ if __name__ == '__main__':
     printer.connect(log)
 
     if os.environ['CONTENT_TYPE'] == 'application/x-crossword':
-        pm = PageMaker(jobid, user, name, copies, options, data, printer)
+        pm = PageMaker(jobid, user, name, copies, options, data, printer,
+                debug=True)
         pm.build()
     else:
         os.exit(1)

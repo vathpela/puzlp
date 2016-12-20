@@ -2,6 +2,10 @@ TESTS=pmj-themeless-zero.puz solve-for-x.puz
 
 all:
 
+install:
+	install -d -m 0644 /usr/lib/cups/filter/
+	install -m 0655 puzlp /usr/lib/cups/filter/puzlp
+
 test:
 	export PPD=$$PWD/manufacturing.ppd ; \
 	export PRINTER=ignore ; \
